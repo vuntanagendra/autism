@@ -1,0 +1,217 @@
+<!-- month1.html (updated to use childId) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Month 1 Questionnaire</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f9ff;
+      padding: 30px;
+    }
+    .container {
+      position: relative;
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+    }
+    h2, h4 {
+      text-align: center;
+    }
+    .info {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button[type="submit"] {
+      background-color: #007bff;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+      margin-top: 20px;
+    }
+    button[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+
+    /* Navigation buttons */
+    .nav-btn {
+      position: absolute;
+      top: 20px;
+      padding: 8px 16px;
+      font-size: 0.9em;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .logout-btn {
+      right: 20px;
+      background-color: #dc3545;
+      color: white;
+    }
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+    .back-btn {
+      left: 20px;
+      background-color: #6c757d;
+      color: white;
+    }
+    .back-btn:hover {
+      background-color: #5a6268;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button class="nav-btn back-btn" onclick="goBack()">← Back</button>
+    <button class="nav-btn logout-btn" onclick="logout()">Logout</button>
+
+    <h2>📋 Month 1 Questionnaire</h2>
+
+    <div class="info">
+      <p><strong>Child:</strong> <span id="childName"></span></p>
+      <p><strong>DOB:</strong> <span id="dob"></span></p>
+      <p><strong>Month:</strong> <span id="month"></span></p>
+    </div>
+
+    <form id="questionnaireForm">
+      <div class="form-group">
+        <label for="q1">1. Is your child able to follow a moving object?</label>
+        <select id="q1" name="q1" required>
+          <option value="">-- Select --</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="q2">2. Does your child respond to sound?</label>
+        <select id="q2" name="q2" required>
+          <option value="">-- Select --</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="q3">3. Can your child hold their head up?</label>
+        <select id="q3" name="q3" required>
+          <option value="">-- Select --</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="q4">4. Does your child smile at people?</label>
+        <select id="q4" name="q4" required>
+          <option value="">-- Select --</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="q5">5. Is your child making cooing sounds?</label>
+        <select id="q5" name="q5" required>
+          <option value="">-- Select --</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+
+      <button type="submit">Submit Questionnaire</button>
+    </form>
+  </div>
+
+  <script>
+    const childName = sessionStorage.getItem("selectedChildName");
+    const dob = sessionStorage.getItem("selectedChildDOB");
+    const childId = sessionStorage.getItem("selectedChildId");
+    const parentEmail = sessionStorage.getItem("parentEmail");
+    const month = sessionStorage.getItem("currentMonth");
+
+    if (!childName || !dob || !parentEmail || !month || !childId) {
+      alert("Missing child info. Returning to dashboard.");
+      window.location.href = "dashboard.html";
+    }
+
+    document.getElementById("childName").textContent = childName;
+    document.getElementById("dob").textContent = dob;
+    document.getElementById("month").textContent = month;
+
+    document.getElementById("questionnaireForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const answers = {
+        childId,
+        parent_email: parentEmail,
+        month,
+        q1: document.getElementById("q1").value,
+        q2: document.getElementById("q2").value,
+        q3: document.getElementById("q3").value,
+        q4: document.getElementById("q4").value,
+        q5: document.getElementById("q5").value
+      };
+
+      try {
+        const response = await fetch("/submit-questionnaire", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(answers)
+        });
+
+        const result = await response.text();
+        alert("✅ Submitted successfully!");
+        window.location.href = "progress.html";
+      } catch (err) {
+        console.error("Submission failed:", err);
+        alert("❌ Failed to submit. Please try again.");
+      }
+    });
+
+// Fetch previous answers for this month and prefill if exists
+fetch(`/get-answers?childId=${encodeURIComponent(childId)}&month=${encodeURIComponent(month)}`)
+  .then(res => res.json())
+  .then(data => {
+    if (data.answers) {
+      document.getElementById("q1").value = data.answers.q1;
+      document.getElementById("q2").value = data.answers.q2;
+      document.getElementById("q3").value = data.answers.q3;
+      document.getElementById("q4").value = data.answers.q4;
+      document.getElementById("q5").value = data.answers.q5;
+    }
+  })
+  .catch(err => {
+    console.error("Error loading previous answers:", err);
+  });
+
+  
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = "login.html";
+    }
+    function goBack() {
+      window.location.href = "questionnaire.html";
+    }
+  </script>
+</body>
+</html>

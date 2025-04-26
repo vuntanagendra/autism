@@ -1,0 +1,191 @@
+<!-- dashboard.html (updated with "Know About Autism" button on the left corner) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 30px; }
+    .container {
+      position: relative;
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    h2 { text-align: center; color: #333; }
+    .form-group { margin: 20px 0; }
+    input, select {
+      padding: 10px;
+      margin-top: 5px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    button:hover { background: #0056b3; }
+    .child-fields { margin-top: 20px; }
+    .child-card {
+      background: #e9f7ef;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .child-card:hover { background: #d4edda; }
+
+    .logout-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+
+    .info-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+
+    .info-btn:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="position: relative;">
+      <button class="info-btn" onclick="window.open('https://www.autismspeaks.org/what-autism', '_blank')">Know About Autism</button>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+    <h2>👋 Welcome, <span id="parentName">Parent</span>!</h2>
+    <div class="form-group">
+      <label for="childCount">How many children do you want to track?</label>
+      <input type="number" id="childCount" min="1" max="5" />
+      <button onclick="generateChildInputs()">Add Child Details</button>
+    </div>
+    <form id="childrenForm" style="display:none;">
+      <div id="childInputs" class="child-fields"></div>
+      <button type="submit">Submit All Children</button>
+    </form>
+    <div id="childList"></div>
+  </div>
+
+  <script>
+    const parentEmail = sessionStorage.getItem("parentEmail");
+    const parentName = sessionStorage.getItem("parentName") || "Parent";
+    document.getElementById("parentName").textContent = parentName;
+
+    fetchChildrenFromDatabase();
+
+    function generateChildInputs() {
+      const count = parseInt(document.getElementById("childCount").value);
+      const container = document.getElementById("childInputs");
+      container.innerHTML = "";
+      document.getElementById("childrenForm").style.display = "block";
+
+      for (let i = 1; i <= count; i++) {
+        container.innerHTML += `
+          <div class="form-group">
+            <label>Child ${i} Name:</label>
+            <input type="text" name="childName${i}" required />
+            <label>Child ${i} DOB:</label>
+            <input type="date" name="dob${i}" required />
+          </div>
+        `;
+      }
+    }
+
+    document.getElementById("childrenForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const count = parseInt(document.getElementById("childCount").value);
+      const children = [];
+
+      for (let i = 1; i <= count; i++) {
+        const childName = document.querySelector(`[name='childName${i}']`).value.trim();
+        const dob = document.querySelector(`[name='dob${i}']`).value;
+        children.push({ childName, dob });
+      }
+
+      fetch('/add-children', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentEmail, children })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data || !data.message) throw new Error("Failed to save");
+          alert(data.message);
+          fetchChildrenFromDatabase();
+        })
+        .catch(err => {
+          console.error("Error saving children:", err);
+          alert("Error: " + err.message);
+        });
+    });
+
+    function showChildCards(children) {
+      const list = document.getElementById("childList");
+      list.innerHTML = "<h3>🧒 Select a child to continue:</h3>";
+      children.forEach(child => {
+        const div = document.createElement("div");
+        div.className = "child-card";
+        div.textContent = `${child.child_name} (DOB: ${child.dob})`;
+        div.addEventListener("click", () => {
+          sessionStorage.setItem("selectedChildName", child.child_name);
+          sessionStorage.setItem("selectedChildDOB", child.dob);
+          sessionStorage.setItem("selectedChildId", child.id);
+          sessionStorage.setItem("parentEmail", parentEmail);
+          window.location.href = "questionnaire.html";
+        });
+        list.appendChild(div);
+      });
+    }
+
+    function fetchChildrenFromDatabase() {
+      fetch(`/get-children?parentEmail=${encodeURIComponent(parentEmail)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.children && data.children.length > 0) {
+            showChildCards(data.children);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch children:", err);
+        });
+    }
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+</html>

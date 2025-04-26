@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Monthly Questionnaire</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f9ff;
+      padding: 30px;
+    }
+    .container {
+      position: relative;
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+    }
+    h2, h4 {
+      text-align: center;
+    }
+    .info {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button[type="submit"] {
+      background-color: #007bff;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+      margin-top: 20px;
+    }
+    button[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+
+    /* Navigation buttons */
+    .nav-btn {
+      position: absolute;
+      top: 20px;
+      padding: 8px 16px;
+      font-size: 0.9em;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .logout-btn {
+      right: 20px;
+      background-color: #dc3545;
+      color: white;
+    }
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+    .back-btn {
+      left: 20px;
+      background-color: #6c757d;
+      color: white;
+    }
+    .back-btn:hover {
+      background-color: #5a6268;
+    }
+
+    .success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 15px;
+  margin-top: 20px;
+  border: 1px solid #c3e6cb;
+  border-radius: 5px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 15px;
+  margin-top: 20px;
+  border: 1px solid #f5c6cb;
+  border-radius: 5px;
+  font-weight: bold;
+  text-align: center;
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button class="nav-btn back-btn" onclick="goBack()">← Back</button>
+    <button class="nav-btn logout-btn" onclick="logout()">Logout</button>
+
+    <h2>📋 Month <span id="monthNumber"></span> Questionnaire</h2>
+
+    <div class="info">
+      <p><strong>Child:</strong> <span id="childName"></span></p>
+      <p><strong>DOB:</strong> <span id="dob"></span></p>
+      <p><strong>Month:</strong> <span id="month"></span></p>
+    </div>
+
+    <form id="questionnaireForm">
+      <div id="questionsContainer">
+        <!-- Questions will be dynamically loaded here -->
+      </div>
+
+      <button type="submit">Submit Questionnaire</button>
+    </form>
+  <div id="messageBox" style="display: none;" class="success-message"></div>
+
+  </div>
+
+  <script>
+    const childName = sessionStorage.getItem("selectedChildName");
+    const dob = sessionStorage.getItem("selectedChildDOB");
+    const childId = sessionStorage.getItem("selectedChildId");
+    const parentEmail = sessionStorage.getItem("parentEmail");
+    const month = sessionStorage.getItem("currentMonth");
+
+    if (!childName || !dob || !parentEmail || !month || !childId) {
+      alert("Missing child info. Returning to dashboard.");
+      window.location.href = "dashboard.html";
+    }
+
+    document.getElementById("childName").textContent = childName;
+    document.getElementById("dob").textContent = dob;
+    document.getElementById("month").textContent = month;
+    document.getElementById("monthNumber").textContent = month;
+    document.title = `Month ${month} Questionnaire`;
+
+    // Questions database - each month has its own set of 5 questions
+    const questionsDatabase = {
+      1: [
+        "Is your child able to follow a moving object?",
+        "Does your child respond to sound?",
+        "Can your child hold their head up?",
+        "Does your child smile at people?",
+        "Is your child making cooing sounds?"
+      ],
+      2: [
+        "Does your child vocalize in response to you?",
+        "Does your child hold their head steady?",
+        "Does your child push up when lying on stomach?",
+        "Does your child notice their hands?",
+        "Does your child smile spontaneously?"
+      ],
+      3: [
+        "Does your child babble or make consonant sounds?",
+        "Does your child reach for objects?",
+        "Does your child roll from back to side?",
+        "Does your child recognize familiar people?",
+        "Does your child respond to peek-a-boo?"
+      ],
+      // Continue with questions for months 4-24...
+      4: [
+        "Does your child use gestures like waving?",
+        "Does your child respond to their name?",
+        "Can your child sit without support?",
+        "Is your child trying to imitate sounds?",
+        "Does your child make eye contact when interacting?"
+      ],
+      5: [
+        "Is your child passing objects from one hand to another?",
+        "Does your child look for dropped objects?",
+        "Can your child roll in both directions?",
+        "Does your child respond differently to strangers?",
+        "Does your child show interest in new toys?"
+      ],
+      // Add more months...
+      24: [
+        "Does your child speak in sentences of 2-3 words?",
+        "Can your child follow 2-step instructions?",
+        "Does your child show interest in other children?",
+        "Can your child sort objects by shape or color?",
+        "Does your child engage in pretend play?"
+      ]
+    };
+
+    // If a month doesn't have specific questions, use these default ones
+    const defaultQuestions = [
+      "Does your child respond to verbal cues?",
+      "Can your child maintain eye contact during interaction?",
+      "Does your child show interest in other people?",
+      "Is your child reaching appropriate motor milestones?",
+      "Does your child communicate needs effectively?"
+    ];
+
+    // Load questions for the current month
+    function loadQuestions() {
+      const questionsContainer = document.getElementById("questionsContainer");
+      const questions = questionsDatabase[month] || defaultQuestions;
+      
+      questionsContainer.innerHTML = ""; // Clear container
+      
+      questions.forEach((question, index) => {
+        const questionNumber = index + 1;
+        const questionId = `q${questionNumber}`;
+        
+        const questionHtml = `
+          <div class="form-group">
+            <label for="${questionId}">${questionNumber}. ${question}</label>
+            <select id="${questionId}" name="${questionId}" required>
+              <option value="">-- Select --</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
+          </div>
+        `;
+        
+        questionsContainer.innerHTML += questionHtml;
+      });
+    }
+
+    loadQuestions();
+
+    document.getElementById("questionnaireForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const answers = {
+    childId,
+    parent_email: parentEmail,
+    month,
+    q1: document.getElementById("q1").value,
+    q2: document.getElementById("q2").value,
+    q3: document.getElementById("q3").value,
+    q4: document.getElementById("q4").value,
+    q5: document.getElementById("q5").value
+  };
+
+  const messageBox = document.getElementById("messageBox");
+
+  try {
+    const response = await fetch("/submit-questionnaire", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(answers)
+    });
+
+    const result = await response.text();
+
+    messageBox.textContent = "✅ Submitted successfully!";
+    messageBox.className = "success-message";
+    messageBox.style.display = "block";
+
+    // Redirect after 2 seconds
+    setTimeout(() => {
+      window.location.href = "progress.html";
+    }, 2000);
+  } catch (err) {
+    console.error("Submission failed:", err);
+    messageBox.textContent = "❌ Failed to submit. Please try again.";
+    messageBox.className = "error-message";
+    messageBox.style.display = "block";
+  }
+});
+
+    // Fetch previous answers for this month and prefill if exists
+    fetch(`/get-answers?childId=${encodeURIComponent(childId)}&month=${encodeURIComponent(month)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.answers) {
+          document.getElementById("q1").value = data.answers.q1;
+          document.getElementById("q2").value = data.answers.q2;
+          document.getElementById("q3").value = data.answers.q3;
+          document.getElementById("q4").value = data.answers.q4;
+          document.getElementById("q5").value = data.answers.q5;
+        }
+      })
+      .catch(err => {
+        console.error("Error loading previous answers:", err);
+      });
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = "login.html";
+    }
+    
+    function goBack() {
+      window.location.href = "questionnaire.html";
+    }
+  </script>
+</body>
+</html>

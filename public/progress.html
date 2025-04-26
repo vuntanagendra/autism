@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Progress Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f4f4;
+      padding: 30px;
+    }
+    .container {
+      position: relative;
+      max-width: 900px;
+      margin: auto;
+      background-color: #ffffff;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #333;
+    }
+    .info {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .progress-bar-wrapper {
+      background-color: #ddd;
+      border-radius: 10px;
+      height: 25px;
+      overflow: hidden;
+      margin-bottom: 30px;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: #28a745;
+      width: 0;
+      transition: width 0.5s ease;
+      color: #fff;
+      text-align: center;
+      line-height: 25px;
+    }
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 15px;
+    }
+    .month-card {
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+      color: white;
+      transition: transform 0.2s;
+    }
+    .month-card.completed {
+      background-color: #28a745;
+    }
+    .month-card.pending {
+      background-color: #dc3545;
+    }
+    .month-card:hover {
+      transform: scale(1.05);
+    }
+
+    /* Nav buttons */
+    .nav-btn {
+      position: absolute;
+      top: 20px;
+      padding: 8px 16px;
+      font-size: 0.9em;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .logout-btn {
+      right: 20px;
+      background-color: #dc3545;
+      color: white;
+    }
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+    .back-btn {
+      left: 20px;
+      background-color: #6c757d;
+      color: white;
+    }
+    .back-btn:hover {
+      background-color: #5a6268;
+    }
+    canvas {
+  width: 100% !important;
+  height: 400px !important;
+}
+
+.generate-btn {
+  right: 120px;
+  background-color: #007bff;
+  color: white;
+}
+.generate-btn:hover {
+  background-color: #0069d9;
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button class="nav-btn back-btn" onclick="goBack()">← Back</button>
+    <button class="nav-btn logout-btn" onclick="logout()">Logout</button>
+    <button class="nav-btn generate-btn" onclick="generateReport()">📄 Generate Report</button>
+    <!-- Add a spinner and progress bar -->
+    <div id="loadingWrapper" style="display: none; text-align: center; margin-top: 30px;">
+      <div id="loadingSpinner" style="display: inline-block; margin-bottom: 10px;">
+        <div class="spinner-border text-primary" role="status">
+          <span class="sr-only">Loading...</span>
+        </div>
+      </div>
+      <div id="loadingText">Generating report...</div>
+      <div class="progress-bar-wrapper" id="reportProgressWrapper" style="margin-top: 10px;">
+        <div class="progress-bar" id="reportProgress" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <h2>📊 Child's Monthly Questionnaire Progress</h2>
+    <div class="info">
+      <p><strong>Child Name:</strong> <span id="childName"></span></p>
+      
+    </div>
+
+    <div class="progress-bar-wrapper">
+      <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+    <div class="info">
+        <h3>🧠 Over All Autism Score: <span id="scoreValue">Loading...</span> / 10</h3>
+        <div id="scoreViz" style="width: 200px; height: 200px; margin: auto;"></div>
+      </div>
+      <!-- Monthly Autism Score Line Chart -->
+<div style="margin-top: 40px;">
+  <h3 style="text-align:center;">📈 Monthly Autism Score Trend</h3>
+  <canvas id="scoreLineChart" width="400" height="200"></canvas>
+</div>
+    <div class="month-grid" id="monthGrid"></div>
+
+
+
+  </div>
+
+  <script>
+    const totalMonths = 24;
+    const childName = sessionStorage.getItem("selectedChildName") || "Not provided";
+    const childId = sessionStorage.getItem("selectedChildId");
+   // const ageGroup = sessionStorage.getItem("ageGroup") || "Auto";
+
+    document.getElementById("childName").textContent = childName;
+   // document.getElementById("ageGroup").textContent = ageGroup;
+
+    const grid = document.getElementById("monthGrid");
+    const progressBar = document.getElementById("progressBar");
+
+    fetch(`/get-progress?childId=${encodeURIComponent(childId)}`)
+      .then(res => res.json())
+      .then(data => {
+        const submittedMonths = data.submittedMonths?.map(m => parseInt(m)) || [];
+        let completedCount = 0;
+
+        for (let i = 1; i <= totalMonths; i++) {
+          const div = document.createElement('div');
+          const isCompleted = submittedMonths.includes(i);
+          div.className = `month-card ${isCompleted ? 'completed' : 'pending'}`;
+          div.textContent = `${i}${i === 1 ? 'st' : i === 2 ? 'nd' : i === 3 ? 'rd' : 'th'} Month`;
+          grid.appendChild(div);
+          if (isCompleted) completedCount++;
+        }
+
+        const progressPercent = Math.round((completedCount / totalMonths) * 100);
+        progressBar.style.width = progressPercent + '%';
+        progressBar.textContent = progressPercent + '%';
+      })
+      .catch(err => {
+        console.error("Failed to load progress:", err);
+        progressBar.style.backgroundColor = "#ffc107";
+        progressBar.textContent = "Error loading progress";
+      });
+
+      // Fetch Autism Score
+// Autism Score Gauge Visualization
+fetch(`/get-autism-score?childId=${encodeURIComponent(childId)}`)
+  .then(res => res.json())
+  .then(data => {
+    const score = data.score || 0;
+    document.getElementById("scoreValue").textContent = score;
+
+    const percent = score * 10;
+    const color = score >= 8 ? '#28a745' : score >= 5 ? '#ffc107' : '#dc3545';
+
+    const svg = `
+      <svg viewBox="0 0 36 36" width="150" height="150">
+        <path fill="none" stroke="#eee" stroke-width="4"
+              d="M18 2.0845
+                 a 15.9155 15.9155 0 0 1 0 31.831
+                 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+        <path fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="${percent}, 100"
+              d="M18 2.0845
+                 a 15.9155 15.9155 0 0 1 0 31.831
+                 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+        <text x="18" y="20.35" font-size="7" text-anchor="middle" fill="${color}">${score}/10</text>
+      </svg>
+    `;
+
+    document.getElementById("scoreViz").innerHTML = svg;
+  })
+  .catch(err => {
+    console.error("Error loading autism score:", err);
+    document.getElementById("scoreValue").textContent = "Error";
+  });
+
+// Fetch monthly scores and render chart
+fetch(`/get-monthly-scores?childId=${encodeURIComponent(childId)}`)
+    .then(res => res.json())
+    .then(data => {
+      const labels = data.map(entry => `${entry.month} Month`);
+      const scores = data.map(entry => entry.score);
+
+
+
+      const ctx = document.getElementById('scoreLineChart').getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, 'rgba(0, 123, 255, 0.3)');
+      gradient.addColorStop(1, 'rgba(0, 123, 255, 0)');     
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Autism Score',
+            data: scores,
+            fill: true,
+            backgroundColor: gradient,
+            borderColor: '#007bff',
+            borderWidth: 2,
+            tension: 0.4,
+            pointBackgroundColor: '#007bff',
+            pointRadius: 5,
+            pointHoverRadius: 6
+          }]
+
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: {
+              left: 20,
+              right: 20,
+              top: 10,
+              bottom: 10
+            }
+          },
+          scales: {
+            y: {
+              min: 0,
+              max: 11,
+              ticks: {
+                stepSize: 1
+              },
+              title: {
+                display: true,
+                text: 'Score (0-10)',
+                color: '#333',
+                font: {
+                  weight: 'bold'
+                }
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Month',
+                color: '#333',
+                font: {
+                  weight: 'bold'
+                }
+              },
+              ticks: {
+                autoSkip: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `Score: ${context.raw}`;
+                }
+              }
+            }
+          },
+        }
+      });
+    })
+    .catch(err => {
+      console.error("Error loading monthly scores:", err);
+    });
+
+    function generateReport() {
+  if (!childId) {
+    alert("Child ID not found. Please select a child first.");
+    return;
+  }
+
+  // Show the loading spinner and progress bar
+  document.getElementById('loadingWrapper').style.display = 'block';
+
+  const data = {
+    childId: childId
+  };
+
+  fetch('/generate-report', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)  // Send data as JSON
+  })
+  .then(response => {
+    // Simulate progress in steps while generating the report
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      document.getElementById('reportProgress').style.width = `${progress}%`;
+      if (progress >= 100) {
+        clearInterval(interval);
+      }
+    }, 300);  // Update every 300ms (adjust for desired speed)
+
+    return response.json();
+  })
+  .then(data => {
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+    const report = data.report || "No report generated.";
+    
+    // Hide the loading spinner and progress bar
+    document.getElementById('loadingWrapper').style.display = 'none';
+
+    // Assuming the report text will be received as a response and will be shown or downloaded
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${childName}_autism_report.txt`;  // Download the report as a .txt file
+    a.click();
+    window.URL.revokeObjectURL(url);
+  })
+  .catch(err => {
+    console.error("Error generating report:", err);
+    alert("Error generating report.");
+    document.getElementById('loadingWrapper').style.display = 'none'; // Hide loading spinner
+  });
+}
+
+
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = "login.html";
+    }
+
+    function goBack() {
+      window.location.href = "questionnaire.html";
+    }
+  </script>
+</body>
+</html>
