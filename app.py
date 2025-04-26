@@ -434,4 +434,4 @@ if __name__ == '__main__':
         print(f"Using existing static folder: {app.static_folder}")
     
     print("Starting Flask server on port 3000...")
-    app.run(host='0.0.0.0', port=3000, debug=True)
+    app.run(host='0.0.0.0', port=3000, debug=False, use_reloader=False)
